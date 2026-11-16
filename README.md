@@ -48,9 +48,30 @@ cap) are part of the cost model, not afterthoughts.
 | `cost` | The cost model: predicts time/energy per plan, feasibility with named reasons, bottleneck classification, thermal derating, concurrent-task interference. |
 | `planner` | Candidate generation (single, DP assignment, greedy, throughput-proportional splits, MoE offload, speculative variants), capacity repair + local search, ranking with a simplicity tie-break, honest no-fit reports with *tested* reduction suggestions. |
 | `tuner` | Online tuning: measured winners, persistence keyed by machine+task signatures, fallback to estimates on any signature change. |
+| `vendor` | Cross-vendor kernel gate (ported from Tsugi): per-vendor hardware facts (warp/wavefront, shared-memory/LDS hard limits, register files, matrix-core shapes), launch feasibility, and occupancy estimation for a tile-kernel configuration — the "will it even start on the other vendor" check upstream of planning. |
 | `sim` | Verification harness: random small cases, brute-force optimum over a defined space, gap statistics. |
 | `profiles` | Reference machines/tasks, including the Alloy rig (A2000/RX 6400/A310 with the investigation's measured bandwidths). |
 | `cmd/yosegi` | Demo CLI: `plan` prints planner decisions for the bundled profiles; `sim` prints optimality statistics. |
+
+## The `vendor` package (from Tsugi)
+
+The `vendor` package is Tsugi's portability verification layer,
+integrated here in 2026-11 because its question — *given a kernel
+configuration, what happens on the other vendor's GPU?* — is the
+upstream gate Yosegi's vendor-neutral device model was missing: the
+planner could say a task fits a GPU's memory, but not whether a
+kernel tuned for one vendor would even launch on another (Hopper's
+227KB/block shared memory vs CDNA's 64KiB LDS is the canonical
+break), nor how occupancy differs when it does.
+
+Ported: the vendor hardware tables (primary-source constants), the
+launch-feasibility gate, the occupancy estimator, and the
+cross-vendor asymmetry/gap helpers, with Tsugi's own test cases.
+Not ported, deliberately: Tsugi's numerical-equivalence layers
+(they compare two vendors' executed results — a runtime QA concern,
+not placement planning) and its tile DSL / compiler (Yosegi plans
+work; it does not compile kernels). Tsugi's repository remains the
+reference for those.
 
 ## Optimality — measured, with the limits stated
 
@@ -71,9 +92,10 @@ the test suite.
 ## Usage
 
 ```sh
-go run ./cmd/yosegi plan   # planner decisions on the bundled profiles
-go run ./cmd/yosegi sim    # optimality statistics vs brute force
-go test ./...               # full test suite
+go run ./cmd/yosegi plan        # planner decisions on the bundled profiles
+go run ./cmd/yosegi sim         # optimality statistics vs brute force
+go run ./cmd/yosegi vendorcheck # cross-vendor launch/occupancy gate (from Tsugi)
+go test ./...                    # full test suite
 ```
 
 As a library:
