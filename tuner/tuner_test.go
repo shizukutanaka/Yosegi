@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"yosegi/cost"
-	"yosegi/device"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/cost"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 func planFor(unit string, stages int) cost.Plan {

@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"yosegi/device"
+	"github.com/shizukutanaka/Yosegi/device"
 )
 
 // Stage is one assignable piece of a task.

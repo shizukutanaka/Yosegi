@@ -3,9 +3,9 @@ package planner
 import (
 	"math"
 
-	"yosegi/cost"
-	"yosegi/device"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/cost"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 // This file holds the feasibility repair and the local-search polish.

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"yosegi/device"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 func twoGPU() *device.Machine {

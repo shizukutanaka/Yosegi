@@ -29,9 +29,9 @@ import (
 	"math"
 	"sort"
 
-	"yosegi/cost"
-	"yosegi/device"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/cost"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 // ScoredPlan is a plan with its predicted cost.

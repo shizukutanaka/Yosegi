@@ -22,8 +22,8 @@ import (
 	"sort"
 	"strings"
 
-	"yosegi/device"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 // Placement assigns one stage to one or more units.

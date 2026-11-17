@@ -9,8 +9,8 @@
 package profiles
 
 import (
-	"yosegi/device"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 const gib = 1 << 30
