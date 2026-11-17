@@ -19,10 +19,10 @@ import (
 	"math/rand"
 	"sort"
 
-	"yosegi/cost"
-	"yosegi/device"
-	"yosegi/planner"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/cost"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/planner"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 // BruteForce returns the best feasible plan in the brute-force space

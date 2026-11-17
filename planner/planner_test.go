@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"yosegi/cost"
-	"yosegi/device"
-	"yosegi/profiles"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/cost"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/profiles"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 func unitsUsed(p cost.Plan) map[string]bool {

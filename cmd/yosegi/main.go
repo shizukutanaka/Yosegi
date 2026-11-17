@@ -11,13 +11,13 @@ import (
 	"fmt"
 	"os"
 
-	"yosegi/cost"
-	"yosegi/device"
-	"yosegi/planner"
-	"yosegi/profiles"
-	"yosegi/sim"
-	"yosegi/vendor"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/cost"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/planner"
+	"github.com/shizukutanaka/Yosegi/profiles"
+	"github.com/shizukutanaka/Yosegi/sim"
+	"github.com/shizukutanaka/Yosegi/vendor"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 func main() {

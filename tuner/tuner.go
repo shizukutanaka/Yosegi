@@ -24,9 +24,9 @@ import (
 	"sort"
 	"time"
 
-	"yosegi/cost"
-	"yosegi/device"
-	"yosegi/workload"
+	"github.com/shizukutanaka/Yosegi/cost"
+	"github.com/shizukutanaka/Yosegi/device"
+	"github.com/shizukutanaka/Yosegi/workload"
 )
 
 // Measurement is one candidate's measured outcome.
