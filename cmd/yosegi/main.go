@@ -3,13 +3,22 @@
 // built-in machine profiles and runs the optimality simulator.
 //
 //	yosegi plan        — plan example tasks on the Alloy rig and a whole-PC profile
+//	yosegi plan -machine my-pc.json -task my-task.json [-bench bench.json]
+//	                   — plan YOUR task on YOUR machine, from local JSON files
+//	yosegi template machine|task — print an editable JSON starting point
 //	yosegi sim         — planner vs brute force over synthetic cases
 //	yosegi vendorcheck — cross-vendor launch/occupancy gate for example kernel configs
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/shizukutanaka/Yosegi/cost"
 	"github.com/shizukutanaka/Yosegi/device"
@@ -27,7 +36,23 @@ func main() {
 	}
 	switch cmd {
 	case "plan":
+		if len(os.Args) > 2 {
+			if err := runPlanCmd(os.Stdout, os.Args[2:]); err != nil {
+				fmt.Fprintln(os.Stderr, "yosegi plan:", err)
+				os.Exit(1)
+			}
+			return
+		}
 		runPlan()
+	case "template":
+		kind := ""
+		if len(os.Args) > 2 {
+			kind = os.Args[2]
+		}
+		if err := writeTemplate(os.Stdout, kind); err != nil {
+			fmt.Fprintln(os.Stderr, "yosegi template:", err)
+			os.Exit(2)
+		}
 	case "sim":
 		st := sim.Run(42, 200)
 		fmt.Printf("simulator: %d cases, %d compared\n", st.Cases, st.Compared)
@@ -38,30 +63,34 @@ func main() {
 	case "vendorcheck":
 		runVendorCheck()
 	default:
-		fmt.Fprintf(os.Stderr, "usage: yosegi [plan|sim|vendorcheck]\n")
+		fmt.Fprintf(os.Stderr, "usage: yosegi [plan [-machine FILE -task FILE [-bench FILE]]|template machine|task|sim|vendorcheck]\n")
 		os.Exit(2)
 	}
 }
 
 func show(m *device.Machine, label string, t workload.Task, opts planner.Options) {
+	showTo(os.Stdout, m, label, t, opts)
+}
+
+func showTo(w io.Writer, m *device.Machine, label string, t workload.Task, opts planner.Options) {
 	out := planner.Solve(m, t, opts)
-	fmt.Printf("== %s on %s\n", t.Name, label)
+	fmt.Fprintf(w, "== %s on %s\n", t.Name, label)
 	if out.NoFit != nil {
-		fmt.Printf("   NO FIT:\n")
+		fmt.Fprintf(w, "   NO FIT:\n")
 		for _, r := range out.NoFit.Reasons {
-			fmt.Printf("     - %s\n", r)
+			fmt.Fprintf(w, "     - %s\n", r)
 		}
 		for _, s := range out.NoFit.Suggestions {
-			fmt.Printf("     suggestion: %s\n", s)
+			fmt.Fprintf(w, "     suggestion: %s\n", s)
 		}
 		return
 	}
 	for i, sp := range out.Top {
-		fmt.Printf("   #%d %.4f s total (%.4f s/repeat, %.2f repeats/s) bottleneck=%s complexity=%d\n",
+		fmt.Fprintf(w, "   #%d %.4f s total (%.4f s/repeat, %.2f repeats/s) bottleneck=%s complexity=%d\n",
 			i+1, sp.Result.TotalTime, sp.Result.PerRepeat, sp.Result.Throughput, sp.Result.Bottleneck, sp.Plan.Complexity())
-		fmt.Printf("      plan: %s\n", sp.Plan.ID())
+		fmt.Fprintf(w, "      plan: %s\n", sp.Plan.ID())
 		for _, n := range sp.Result.Notes {
-			fmt.Printf("      note: %s\n", n)
+			fmt.Fprintf(w, "      note: %s\n", n)
 		}
 		if i == 0 {
 			_ = cost.SortedReasons(sp.Result)
@@ -126,4 +155,87 @@ func runPlan() {
 	show(&pc, "whole-pc", profiles.CompileTask(), planner.Options{})
 	show(&pc, "whole-pc", profiles.TranscodeTask(), planner.Options{})
 	show(&pc, "whole-pc", profiles.ScanTask(), planner.Options{})
+}
+
+// runPlanCmd plans a user-described task on a user-described machine.
+// Everything is read from local files the user owns; nothing leaves
+// the machine. Optional -bench folds measured microbenchmark results
+// into the machine before planning (measurement beats estimates).
+func runPlanCmd(w io.Writer, args []string) error {
+	fs := flag.NewFlagSet("plan", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	machinePath := fs.String("machine", "", "machine JSON (start from: yosegi template machine)")
+	taskPath := fs.String("task", "", "task JSON (start from: yosegi template task)")
+	benchPath := fs.String("bench", "", "optional microbench results JSON (array of records)")
+	top := fs.Int("top", 3, "plans to show")
+	spec := fs.Bool("spec", false, "consider speculative variants")
+	offload := fs.Bool("offload", false, "consider tier-offload variants")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *machinePath == "" || *taskPath == "" {
+		return errors.New("both -machine and -task are required (see: yosegi template machine|task)")
+	}
+	var m device.Machine
+	if err := readJSON(*machinePath, &m); err != nil {
+		return err
+	}
+	if *benchPath != "" {
+		var bench []device.Microbench
+		if err := readJSON(*benchPath, &bench); err != nil {
+			return err
+		}
+		for _, r := range bench {
+			if _, ok := m.Unit(r.UnitID); !ok {
+				return fmt.Errorf("%s: unknown unit_id %q", *benchPath, r.UnitID)
+			}
+		}
+		m = m.ApplyMicrobench(bench)
+	}
+	if problems := m.Validate(); len(problems) > 0 {
+		return fmt.Errorf("%s: invalid machine: %s", *machinePath, strings.Join(problems, "; "))
+	}
+	var t workload.Task
+	if err := readJSON(*taskPath, &t); err != nil {
+		return err
+	}
+	if len(t.Stages) == 0 || t.Repeats < 1 {
+		return fmt.Errorf("%s: task needs at least one stage and repeats >= 1", *taskPath)
+	}
+	label := m.Name
+	if label == "" {
+		label = *machinePath
+	}
+	showTo(w, &m, label, t, planner.Options{TopK: *top, WithSpec: *spec, WithOffload: *offload})
+	return nil
+}
+
+// readJSON decodes a file strictly: a misspelled field is an error,
+// not a silently ignored measurement.
+func readJSON(path string, v any) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(v); err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	return nil
+}
+
+func writeTemplate(w io.Writer, kind string) error {
+	var v any
+	switch kind {
+	case "machine":
+		v = profiles.WholePC()
+	case "task":
+		v = profiles.TranscodeTask()
+	default:
+		return errors.New("usage: yosegi template machine|task")
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
 }
