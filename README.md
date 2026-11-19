@@ -93,10 +93,19 @@ the test suite.
 
 ```sh
 go run ./cmd/yosegi plan        # planner decisions on the bundled profiles
+go run ./cmd/yosegi template machine > my-pc.json   # edit to describe your PC
+go run ./cmd/yosegi template task > my-task.json    # edit to describe your job
+go run ./cmd/yosegi plan -machine my-pc.json -task my-task.json [-bench bench.json]
 go run ./cmd/yosegi sim         # optimality statistics vs brute force
 go run ./cmd/yosegi vendorcheck # cross-vendor launch/occupancy gate (from Tsugi)
 go test ./...                    # full test suite
 ```
+
+`plan -machine/-task` reads only local files you own; `-bench` takes a
+JSON array of `Microbench` records (`unit_id`, `compute_rate`,
+`sustained_rate`, `memory_bandwidth_bytes_sec`) and applies them
+before planning. Misspelled fields, unknown unit IDs and dangling
+memory references are errors that name the file, not silent defaults.
 
 As a library:
 
